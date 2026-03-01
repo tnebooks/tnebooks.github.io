@@ -1,0 +1,27 @@
+{
+  "name": "static-web-ref",
+  "version": "1.0.0",
+  "description": "Static Website",
+  "author": "Sathish Kumar Thiyagarajan",
+  "license": "ISC",
+  "source": "src/index.html",
+  "scripts": {
+    "watch:src": "parcel",
+    "watch:site": "onchange \"site\" -- run-s build:site",
+    "start": "npm run build && run-p watch:site watch:src",
+    "build:src": "parcel build --public-url ./",
+    "build:site": "hugo --minify -d ../src -s site",
+    "build": "npm run build:site && npm run build:src",
+    "create": "hugo new site",
+    "serve": "hugo server"
+  },
+  "devDependencies": {
+    "parcel": "^2.15.4",
+    "@parcel/plugin": "^2.15.4",
+    "@parcel/transformer-sass": "^2.15.4",
+    "@parcel/transformer-webmanifest": "^2.15.4",
+    "hugo-bin": "^0.147.0",
+    "npm-run-all": "4.1.5",
+    "onchange": "^7.1.0"
+  }
+}
