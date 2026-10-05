@@ -110,7 +110,9 @@ def run_book(book,limits,mode,run_id=None,force=False,*,client_factory=ModelClie
                         state.events.append({'lesson':lesson.id,'stage':name,'seconds':time.monotonic()-start})
                         record['model_attempts']=client.lesson_calls; checkpoint()
                 try:
-                    existing=read_existing(target); current=fingerprint(book,lesson,existing,versions(book))
+                    existing=read_existing(target)
+                    if mode!='audit' and existing and existing.aids_modified: raise ValueError('Study aids were edited or have no provenance; preserve them in a teacher supplement before regeneration')
+                    current=fingerprint(book,lesson,existing,versions(book))
                     receipt_path=checked_path(root,f'validated/{book.book_id}/{lesson.slug}.json')
                     if receipt_path.exists() and not force:
                         receipt=json.loads(receipt_path.read_text())
@@ -132,7 +134,7 @@ def run_book(book,limits,mode,run_id=None,force=False,*,client_factory=ModelClie
                     if mode=='audit':
                         if not existing:
                             record.update(status='needs-review',issues=['Lesson file is missing'],source_fidelity='unverified'); checkpoint(); continue
-                        markdown=existing.front_matter+existing.body
+                        markdown=existing.front_matter+existing.body+existing.managed_aids
                         with timed('existing-figure-mapping'): assets=audit_assets(evidence,existing,client)
                         draft=None
                     else:

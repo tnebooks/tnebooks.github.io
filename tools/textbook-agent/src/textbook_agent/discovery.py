@@ -61,9 +61,9 @@ def inventory_lesson(book: BookManifest, lesson: LessonSpec, client, cache: Path
     for offset in range(0,len(pages),window_size):
         window=[p for p in pages[offset:offset+window_size] if 'intentional-blank-source-page' not in p.warnings]
         if not window: continue
-        key=hashlib.sha256(json.dumps([book.pdf_sha256,[p.checksum for p in window],client.model,prompts.VERSION,lesson.model_dump()],sort_keys=True).encode()).hexdigest()
+        key=hashlib.sha256(json.dumps([book.pdf_sha256,[[p.checksum,p.text,p.warnings] for p in window],book.medium,client.model,prompts.VERSION,lesson.model_dump()],sort_keys=True).encode()).hexdigest()
         dest=cache/'inventories'/f'{key}.json'; dest.parent.mkdir(parents=True,exist_ok=True)
-        if dest.exists(): result=ItemInventory.model_validate_json(dest.read_text(encoding='utf-8'))
+        if dest.exists() and not getattr(client,'force',False): result=ItemInventory.model_validate_json(dest.read_text(encoding='utf-8'))
         else:
             result,_=client.respond(prompts.INVENTORY,{'medium':book.medium,'lesson':lesson.model_dump(),'pages':[{'page':p.page,'text':p.text,'warnings':p.warnings} for p in window]},[p.image for p in window],ItemInventory)
             check_inventory(result,lesson,book.medium)

@@ -11,6 +11,7 @@ from . import prompts
 
 AID_START='<!-- textbook-agent:study-aids -->'
 AID_END='<!-- /textbook-agent:study-aids -->'
+AID_HASH_PREFIX='<!-- textbook-agent:aids-sha256: '
 
 def section_hash(text: str) -> str: return hashlib.sha256(text.encode()).hexdigest()
 
@@ -34,15 +35,22 @@ def read_existing(path: Path) -> ExistingLesson | None:
     raw=path.read_text(encoding='utf-8'); front=''; body=raw
     match=re.match(r'\A---\r?\n.*?\r?\n---(?:\r?\n|$)',raw,re.S)
     if match: front=match.group(); body=raw[len(front):]
-    if AID_START in body:
+    managed_aids=''; aids_modified=False
+    if AID_START in body or AID_END in body:
         if body.count(AID_START)!=1 or body.count(AID_END)!=1: raise ValueError('Malformed managed study-aid block')
-        body=re.sub(re.escape(AID_START)+'.*?'+re.escape(AID_END), '',body,flags=re.S)
+        block=re.search(re.escape(AID_START)+'.*?'+re.escape(AID_END),body,flags=re.S)
+        if not block: raise ValueError('Malformed managed study-aid block')
+        managed_aids=block.group()
+        inner=managed_aids[len(AID_START):-len(AID_END)]
+        provenance=re.match(r'\n'+re.escape(AID_HASH_PREFIX)+r'([0-9a-f]{64}) -->\n',inner)
+        aids_modified=not provenance or section_hash(inner[provenance.end():])!=provenance.group(1)
+        body=body[:block.start()]+body[block.end():]
     assets={}
     for ref in image_refs(raw):
         if urlparse(ref).scheme: continue
         p=checked_path(path.parent,unquote(urlparse(ref).path))
         assets[ref]=sha256(p) if p.is_file() else 'missing'
-    return ExistingLesson(path=path,front_matter=front,body=body,sha256=sha256(path),assets=assets,sections=split_sections(body))
+    return ExistingLesson(path=path,front_matter=front,body=body,sha256=sha256(path),assets=assets,sections=split_sections(body),managed_aids=managed_aids,aids_modified=bool(aids_modified))
 
 def source_groups(evidence,existing):
     groups=[]; current=[]
@@ -100,6 +108,7 @@ def draft_lesson(evidence,existing,client):
     return result
 
 def assemble_lesson(lesson,existing,draft,assets):
+    if existing and existing.aids_modified: raise ValueError('Study aids were edited or have no provenance; preserve them in a teacher supplement before regeneration')
     sections=dict(existing.sections) if existing else {}; order=list(sections)
     asset_map={a.item_id:a for a in assets}; changed=set()
     for edit in draft.edits:
@@ -126,5 +135,6 @@ def assemble_lesson(lesson,existing,draft,assets):
     front=existing.front_matter if existing and existing.front_matter else '---\n'+yaml.safe_dump({'title':lesson.title,'weight':lesson.weight},allow_unicode=True,sort_keys=False)+'---\n'
     body=''.join(sections[a] for a in order)
     if draft.aids:
-        body+='\n\n'+AID_START+'\n\n'+('\n\n'.join('<!-- textbook-aid:'+a.id+' -->\n'+a.markdown for a in draft.aids))+'\n\n'+AID_END+'\n'
+        inner='\n'+('\n\n'.join('<!-- textbook-aid:'+a.id+' -->\n'+a.markdown for a in draft.aids))+'\n\n'
+        body+='\n\n'+AID_START+'\n'+AID_HASH_PREFIX+section_hash(inner)+' -->\n'+inner+AID_END+'\n'
     return front+body

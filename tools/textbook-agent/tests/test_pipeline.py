@@ -71,3 +71,32 @@ def test_failed_review_repairs_at_most_twice(book):
     state=run_book(book,RunLimits(),'run',client_factory=factory)
     assert state.status=='needs-review' and clients[0].repairs==2
     assert not lesson_path(book,book.lessons[0]).exists()
+
+def test_teacher_edits_to_managed_aids_are_preserved_and_audited(book):
+    from textbook_agent.models import StudyAid
+    class AidClient(FixtureClient):
+        observed=[]
+        def respond(self,task,payload,images,schema):
+            if schema is LessonDraft and 'study aids' in task.lower():
+                return LessonDraft(edits=[],assets=[],aids=[StudyAid(id='summary',markdown='## Study aid\n\nOriginal answer.',source_item_ids=['p1'])],notes=[]),None
+            if schema is ReviewResult and 'study_aids' in payload:
+                self.observed.append(payload['study_aids'])
+                return ReviewResult(covered_ids=[],findings=[],verified_aid_ids=['summary']),None
+            return super().respond(task,payload,images,schema)
+    first=run_book(book,RunLimits(),'run',client_factory=AidClient)
+    assert first.status=='complete'
+    path=lesson_path(book,book.lessons[0])
+    path.write_text(path.read_text().replace('Original answer.','Teacher corrected answer.'))
+    before=path.read_bytes()
+    updated=run_book(book,RunLimits(),'run',force=True,client_factory=AidClient)
+    assert updated.status=='needs-review' and path.read_bytes()==before
+    audited=run_book(book,RunLimits(),'audit',force=True,client_factory=AidClient)
+    assert audited.status=='complete' and path.read_bytes()==before
+    assert any('Teacher corrected answer.' in text for text in AidClient.observed)
+
+def test_legacy_managed_aids_require_reconciliation_before_replacement(book):
+    path=lesson_path(book,book.lessons[0]); path.parent.mkdir(parents=True)
+    path.write_text('---\ntitle: Motion\nweight: 1\n---\n## Force\n\nForce.\n<!-- textbook-agent:study-aids -->\nTeacher authored answer.\n<!-- /textbook-agent:study-aids -->\n')
+    before=path.read_bytes()
+    result=run_book(book,RunLimits(),'run',client_factory=FixtureClient)
+    assert result.status=='needs-review' and path.read_bytes()==before

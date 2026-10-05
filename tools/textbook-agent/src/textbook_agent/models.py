@@ -138,6 +138,8 @@ class ExistingLesson(Contract):
     sha256: str
     assets: dict[str,str]
     sections: dict[str,str]
+    managed_aids: str = ''
+    aids_modified: bool = False
 
 class SectionEdit(Contract):
     anchor: str

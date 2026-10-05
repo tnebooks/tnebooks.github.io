@@ -91,7 +91,7 @@ The source PDF is the authority for transcription. Errors in the textbook requir
 
 The destination's `.textbook-agent` directory stores book manifests, source renders/transcriptions, exact-input successful API responses, staged content, reports, validation receipts, and transaction backups. It sits outside `content.en`/`content.ta` and is excluded from the temporary site build. Add `.textbook-agent/` to the destination's Git ignore file if you do not want this working data in source control.
 
-An unchanged, previously validated lesson can skip API work only when its PDF, lesson mapping, tool/instruction version, model, glossary, Markdown, site configuration and image hashes match. Existing Markdown encountered for the first time always gets a source audit. Cached responses help resume interrupted sections without buying identical successful responses again.
+An unchanged, previously validated lesson can skip API work only when its PDF, lesson mapping, tool/instruction version, model, glossary, Markdown, root Hugo configuration files and image hashes match. Existing Markdown encountered for the first time always gets a source audit. Cached responses help resume interrupted sections without buying identical successful responses again.
 
 Changes use a destination lock, original-file hashes and recoverable transactions. If a teacher edits a file during a run, the agent holds the lesson rather than overwriting the edit. It does not delete old user assets, edit presentations, commit textbook changes, or publish the site.
 
@@ -109,3 +109,7 @@ textbook-agent --help
 Tests use fixture PDFs and simulated API responses and make no paid calls. The implementation's live AI pilot requires your locally configured API key. The official English source has not been supplied for the real Class 10 Science pilot. See the acceptance report for what was actually verified.
 
 This first release is a local command-line tool with sequential lessons. Automatic publication, schedules, a graphical interface, cloud hosting, general symbolic mathematics, and AI-generated textbook illustrations are outside its scope. Keep backups and review held lessons; automated checks cannot guarantee perfect educational content.
+
+Teacher changes inside a generated study-aid block are protected by its embedded content checksum. A changed block (or an older block without a checksum) stops regeneration for that lesson and leaves the file intact. Audit still reviews the current aids. To reconcile, move the corrected text into a teacher supplement outside the managed block and remove the old managed block before running again. `--force` also refreshes source inventories, rather than only the later drafts.
+
+Validation receipts currently exclude directory-based Hugo configuration, theme files and the JavaScript math validator. Run `--force` after changing any of these so the source/site/math checks are refreshed. See [ACCEPTANCE_REPORT.md](ACCEPTANCE_REPORT.md) for measured acceptance results and the live checks still required.
