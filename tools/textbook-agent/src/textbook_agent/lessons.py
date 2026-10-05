@@ -55,7 +55,14 @@ def source_groups(evidence,existing):
     matched={}; order=[]
     for group in groups:
         title=group[0].text.strip().casefold()
-        scores=[(SequenceMatcher(None,title,section.lstrip().split('\n',1)[0].lstrip('# ').casefold()).ratio(),anchor) for anchor,section in existing.sections.items()]
+        def normalize(value): return re.sub(r'^\s*(?:\d+(?:\.\d+)*[.)]?\s*)', '',value.lstrip('# ').casefold()).strip()
+        scores=[]
+        for anchor,section in existing.sections.items():
+            headings=re.findall(r'(?m)^#{1,6}\s+(.+)$',section) or [section.lstrip().split('\n',1)[0]]
+            scores.append((max(SequenceMatcher(None,normalize(title),normalize(h)).ratio() for h in headings),anchor))
+        if group[0].kind!='heading' and not groups.index(group):
+            first=next(iter(existing.sections),None)
+            if first: scores.append((1,first))
         score,anchor=max(scores,default=(0,None))
         if score<.45: anchor=f'new-{len(order)}'
         if anchor not in matched: matched[anchor]=[]; order.append(anchor)
@@ -85,7 +92,9 @@ def draft_lesson(evidence,existing,client):
     aids,_=client.respond(prompts.AIDS,{'medium':evidence.medium,'source_items':[i.model_dump() for i in evidence.items]},[],LessonDraft)
     if aids.edits or aids.assets: raise ValueError('Study-aid response attempted source edits')
     source_ids={i.id for i in evidence.items}
+    if len({a.id for a in aids.aids})!=len(aids.aids): raise ValueError('Duplicate study-aid IDs')
     for aid in aids.aids:
+        if not re.fullmatch(r'[a-zA-Z0-9.-]+',aid.id): raise ValueError('Unsafe study-aid ID')
         if not aid.source_item_ids or not set(aid.source_item_ids)<=source_ids: raise ValueError('Unsupported study aid')
     result.aids=aids.aids; result.notes.extend(aids.notes)
     return result
@@ -103,6 +112,7 @@ def assemble_lesson(lesson,existing,draft,assets):
             if edit.after_anchor:
                 if edit.after_anchor not in order: raise ValueError('Missing insertion anchor')
                 order.insert(order.index(edit.after_anchor)+1,edit.anchor)
+            elif existing and len(changed)==1: order.insert(0,edit.anchor)
             else: order.append(edit.anchor)
         def replace(match):
             item=match.group(1)

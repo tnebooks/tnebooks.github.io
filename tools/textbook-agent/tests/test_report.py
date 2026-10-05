@@ -13,3 +13,10 @@ def test_reports_do_not_claim_teacher_approval(book,tmp_path):
     md,data=write_report(book,state,tmp_path/'report')
     assert 'Teacher approval: not recorded' in md.read_text()
     assert json.loads(data.read_text())['elapsed_seconds']==5
+
+def test_explicit_dated_prices_produce_labeled_estimate(book,tmp_path):
+    from textbook_agent.models import BookManifest
+    book=BookManifest.model_validate({**book.model_dump(),'prices':{'effective_date':'2026-10-05','currency':'USD','input_per_million':2,'cached_per_million':.2,'output_per_million':10}})
+    state=RunState(id='priced',book=book,limits=RunLimits(),mode='run',started=0,usage=[ApiUsage(response_id='1',input_tokens=1000,cached_input_tokens=800,output_tokens=100)])
+    _,data=write_report(book,state,tmp_path/'report')
+    assert abs(json.loads(data.read_text())['estimated_cost']['amount']-.00156)<1e-9

@@ -1,4 +1,4 @@
-import base64, json, os, time, random
+import base64, json, os, time, random, mimetypes
 from pathlib import Path
 from pydantic import BaseModel
 from openai import OpenAI, RateLimitError, AuthenticationError, APIConnectionError, APITimeoutError, APIStatusError
@@ -29,7 +29,7 @@ class ModelClient:
     def respond(self,task: str,payload: dict[str,object],images: list[Path],schema: type[BaseModel]):
         content=[{'type':'input_text','text':json.dumps(payload,ensure_ascii=False)}]
         for image in images:
-            content.append({'type':'input_image','image_url':'data:image/png;base64,'+base64.b64encode(image.read_bytes()).decode(),'detail':'high'})
+            content.append({'type':'input_image','image_url':'data:'+ (mimetypes.guess_type(str(image))[0] or 'image/png') +';base64,'+base64.b64encode(image.read_bytes()).decode(),'detail':'high'})
         for attempt in range(self.limits.retries+1):
             self.check_budget(); self.calls+=1; self.lesson_calls+=1
             remaining=self.limits.timeout

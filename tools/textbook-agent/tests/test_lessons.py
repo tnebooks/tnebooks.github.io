@@ -24,3 +24,21 @@ def test_source_and_aid_markers_support_focused_review(book):
     draft=LessonDraft(edits=[SectionEdit(anchor='new-1',expected_sha256=None,markdown='## Force\n\nForce.',after_anchor=None,item_ids=['p1'])],assets=[],aids=[StudyAid(id='summary',markdown='## Study aid\n\nForce.',source_item_ids=['p1'])],notes=[])
     output=assemble_lesson(book.lessons[0],None,draft,[])
     assert 'textbook-items: ["p1"]' in output and 'textbook-aid:summary' in output
+
+def test_subheading_repair_uses_its_existing_parent_section(book,tmp_path):
+    from textbook_agent.lessons import source_groups
+    from textbook_agent.models import LessonEvidence,SourceItem
+    p=tmp_path/'_index.md'; p.write_text('---\ntitle: Motion\nweight: 1\n---\n## Force\n\n### Newton Third Law\n\nOld paragraph.\n')
+    existing=read_existing(p)
+    item=SourceItem(id='p1-heading-1',kind='heading',page=1,box=None,text='1.3 Newton Third Law',caption='',exercise_id=None,order=1,flags=[])
+    e=LessonEvidence(lesson=book.lessons[0],medium='ta',pages=[],items=[item],fingerprint='x')
+    groups=source_groups(e,existing)
+    assert groups[0][0] in existing.sections
+
+
+def test_missing_first_section_is_inserted_before_later_source_sections(book,tmp_path):
+    p=tmp_path/'_index.md'; p.write_text('---\ntitle: Motion\nweight: 1\n---\n## Later\n\nLater source content.\n')
+    existing=read_existing(p)
+    draft=LessonDraft(edits=[SectionEdit(anchor='new-first',expected_sha256=None,markdown='## First\n\nFirst source content.',after_anchor=None,item_ids=['p1'])],assets=[],aids=[],notes=[])
+    output=assemble_lesson(book.lessons[0],existing,draft,[])
+    assert output.index('First source')<output.index('Later source')

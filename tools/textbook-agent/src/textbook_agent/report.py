@@ -25,8 +25,10 @@ def redact(text):
 def write_report(book,state,report_dir):
     report_dir.mkdir(parents=True,exist_ok=True)
     totals=usage_totals(state.usage)
-    data={'book_id':book.book_id,'medium':book.medium,'run_id':state.id,'status':state.status,'elapsed_seconds':state.elapsed,'tokens':totals,'resources':state.resources,'excluded_source_sections':book.excluded_sections,'lessons':state.lessons,'events':state.events,'usage':[u.model_dump() for u in state.usage],'teacher_approval':'not recorded','live_model_calls':len(state.usage)}
+    estimated=estimate_cost(totals,book.prices.model_dump(mode='json') if book.prices else None)
+    data={'estimated_cost':estimated,'book_id':book.book_id,'medium':book.medium,'run_id':state.id,'status':state.status,'elapsed_seconds':state.elapsed,'tokens':totals,'resources':state.resources,'excluded_source_sections':book.excluded_sections,'lessons':state.lessons,'events':state.events,'usage':[u.model_dump() for u in state.usage],'teacher_approval':'not recorded','live_model_calls':len(state.usage)}
     rows=['# Textbook agent run report','',f'Book: {book.book_id} | Medium: {book.medium} | Run: {state.id}',f'Status: {state.status}',f'Elapsed: {state.elapsed:.2f} seconds','Teacher approval: not recorded','', '## Recorded API usage','']
+    if estimated: rows.append('Estimated cost: '+str(estimated['amount'])+' '+estimated['currency']+' (prices dated '+estimated['price_effective_date']+'; not a bill)')
     rows.extend(f'- {k}: {v if v is not None else "unknown"}' for k,v in totals.items())
     rows+=['','Cached input is included in input tokens; reasoning is included in output tokens. These are recorded API responses, not a bill. Unknown request outcomes may incur charges not represented here.','','## Lesson results','', '| Lesson | Status | Source review | Issues |','|---|---|---|---|']
     for lesson in book.lessons:

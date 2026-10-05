@@ -34,7 +34,7 @@ def discover_lessons(book: BookManifest, client, cache: Path) -> BookManifest:
         raw=p.read_text(encoding='utf-8'); metadata=yaml.safe_load(raw.split('---',2)[1]) if raw.startswith('---') else {}
         folders.append({'slug':p.parent.name,'title':metadata.get('title'),'weight':metadata.get('weight')})
     sample=LessonSpec(id='contents',title='Contents',slug='contents',weight=1,pdf_start=1,pdf_end=min(12,book.page_count))
-    pages=list(prepare_pages(book,sample,cache/'pages'))
+    pages=[p for p in prepare_pages(book,sample,cache/'pages') if 'intentional-blank-source-page' not in p.warnings]
     candidates=[]; exclusions=[]
     for offset in range(0,len(pages),client.limits.page_window):
         window=pages[offset:offset+client.limits.page_window]
@@ -59,7 +59,8 @@ def inventory_lesson(book: BookManifest, lesson: LessonSpec, client, cache: Path
     pages=list(prepare_pages(book,lesson,cache/'pages')); items=[]
     window_size=getattr(getattr(client,'limits',None),'page_window',2)
     for offset in range(0,len(pages),window_size):
-        window=pages[offset:offset+window_size]
+        window=[p for p in pages[offset:offset+window_size] if 'intentional-blank-source-page' not in p.warnings]
+        if not window: continue
         key=hashlib.sha256(json.dumps([book.pdf_sha256,[p.checksum for p in window],client.model,prompts.VERSION,lesson.model_dump()],sort_keys=True).encode()).hexdigest()
         dest=cache/'inventories'/f'{key}.json'; dest.parent.mkdir(parents=True,exist_ok=True)
         if dest.exists(): result=ItemInventory.model_validate_json(dest.read_text(encoding='utf-8'))

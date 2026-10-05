@@ -22,3 +22,12 @@ def test_cache_and_empty_render(book,tmp_path):
     from PIL import Image
     p=tmp_path/'blank.png'; Image.new('RGB',(50,50),'white').save(p)
     assert 'blank-render' in inspect_render(p)
+
+def test_intentionally_blank_front_page_is_not_an_unreadable_book(book,tmp_path):
+    import fitz
+    from textbook_agent.models import LessonSpec
+    source=tmp_path/'blank-first.pdf'; d=fitz.open(); d.new_page(); page=d.new_page(); page.insert_text((30,40),'Unit 1 Force'); d.save(source); d.close()
+    book=book.model_copy(update={'pdf':source,'pdf_sha256':''})
+    lesson=LessonSpec(id='contents',title='Contents',slug='contents',weight=1,pdf_start=1,pdf_end=2)
+    pages=list(prepare_pages(book,lesson,tmp_path/'blank-cache'))
+    assert 'intentional-blank-source-page' in pages[0].warnings

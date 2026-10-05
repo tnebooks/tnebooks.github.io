@@ -33,17 +33,20 @@ def prepare_pages(book: BookManifest, lesson: LessonSpec, cache: Path) -> Iterat
             record=root/'page.json'; image=root/'page.png'
             if record.exists() and image.exists():
                 saved=SourcePage.model_validate_json(record.read_text())
-                if saved.checksum==sha256(image) and not inspect_render(image): yield saved; continue
+                if saved.checksum==sha256(image) and (not inspect_render(image) or 'intentional-blank-source-page' in saved.warnings): yield saved; continue
             page=doc[n-1]; w,h=page.rect.width,page.rect.height
             clip=fitz.Rect(boundary[0]*w,boundary[1]*h,boundary[2]*w,boundary[3]*h) if boundary else None
             text=page.get_text('text',sort=True,clip=clip); warnings=[]
             if len(text.strip())<20 or '\ufffd' in text: warnings.append('text-needs-visual-transcription')
             if book.medium=='ta': warnings.append('verify-tamil-font-mapping-visually')
             page.get_pixmap(matrix=fitz.Matrix(2,2),alpha=False).save(image)
-            if inspect_render(image):
+            intentional_blank=not text.strip() and not page.get_images() and not page.get_drawings()
+            if inspect_render(image) and not intentional_blank:
                 try: alternate_render(book.pdf,n,image)
                 except Exception: warnings.append('alternate-render-failed')
-            if inspect_render(image): raise ValueError(f'Unreadable source render on PDF page {n}')
+            if inspect_render(image):
+                if intentional_blank: warnings.append('intentional-blank-source-page')
+                else: raise ValueError(f'Unreadable source render on PDF page {n}')
             if boundary:
                 with Image.open(image) as original:
                     masked=Image.new('RGB',original.size,'white')

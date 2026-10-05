@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 import re
+from datetime import date
 
 class Contract(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -31,6 +32,13 @@ class LessonSpec(Contract):
         if len({b.page for b in self.boundaries})!=len(self.boundaries) or any(not self.pdf_start<=b.page<=self.pdf_end for b in self.boundaries): raise ValueError('Invalid boundary page')
         return self
 
+class RateCard(Contract):
+    effective_date: date
+    currency: str = Field(default='USD',pattern=r'^[A-Z]{3}$')
+    input_per_million: float = Field(ge=0,allow_inf_nan=False)
+    cached_per_million: float = Field(ge=0,allow_inf_nan=False)
+    output_per_million: float = Field(ge=0,allow_inf_nan=False)
+
 class BookManifest(Contract):
     schema_version: int = 1
     book_id: str
@@ -48,6 +56,7 @@ class BookManifest(Contract):
     lessons: list[LessonSpec] = Field(default_factory=list)
     excluded_sections: list[str] = Field(default_factory=list)
     glossary: list[str] = Field(default_factory=list)
+    prices: RateCard | None = None
     @model_validator(mode='after')
     def valid(self):
         if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*',self.book_id): raise ValueError('Unsafe book ID')
@@ -186,4 +195,5 @@ class RunState(Contract):
     resources: dict = Field(default_factory=dict)
     started: float
     elapsed: float = 0
+    selected_ids: list[str] = Field(default_factory=list)
     status: str = 'running'

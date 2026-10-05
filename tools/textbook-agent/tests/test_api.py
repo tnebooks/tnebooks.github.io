@@ -45,3 +45,10 @@ def test_quota_is_not_retried():
     t=Transport([err]); c=ModelClient('test',RunLimits(),transport=t,sleeper=lambda _:None)
     with pytest.raises(AgentError,match='quota'): c.respond('review',{},[],Answer)
     assert len(t.requests)==1
+
+def test_jpeg_uses_correct_image_mime(tmp_path):
+    from PIL import Image
+    p=tmp_path/'figure.jpg'; Image.new('RGB',(20,20),'white').save(p)
+    t=Transport([response()]); c=ModelClient('test',RunLimits(),transport=t)
+    c.respond('review',{},[p],Answer)
+    assert t.requests[0]['input'][0]['content'][1]['image_url'].startswith('data:image/jpeg;')
