@@ -1,7 +1,7 @@
 # School textbook PDF-to-Markdown agent
 
 Date: 5 October 2026
-Status: Design for user review; implementation has not started.
+Status: Approved by the user on 5 October 2026; implementation has not started.
 
 ## Purpose and accepted requirements
 

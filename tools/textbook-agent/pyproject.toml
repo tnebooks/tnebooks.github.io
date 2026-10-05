@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "school-textbook-agent"
+version = "0.1.0"
+description = "Source-grounded English and Tamil textbook PDF to Markdown agent"
+requires-python = ">=3.11"
+dependencies = ["openai>=1.99,<3", "pydantic>=2.7,<3", "PyMuPDF>=1.24,<2", "pdfplumber>=0.11,<0.12", "Pillow>=10,<13", "PyYAML>=6,<7", "markdown-it-py>=3,<5", "psutil>=6,<8"]
+[project.optional-dependencies]
+dev = ["pytest>=8,<10"]
+[project.scripts]
+textbook-agent = "textbook_agent.cli:main"
+[tool.setuptools.package-data]
+textbook_agent = ["*.mjs", "package*.json"]
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore:builtin type.*:DeprecationWarning"]
