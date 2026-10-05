@@ -1,4 +1,4 @@
-import hashlib,re
+import hashlib,re,json
 from difflib import SequenceMatcher
 from pathlib import Path
 from urllib.parse import urlparse,unquote
@@ -109,9 +109,12 @@ def assemble_lesson(lesson,existing,draft,assets):
             if item not in asset_map: raise ValueError('Unbound source asset')
             a=asset_map[item]; caption=a.caption.replace('[','(').replace(']',')').replace('\n',' ')
             return f'![{caption} (PDF page {a.page})]({a.path})'
-        sections[edit.anchor]=re.sub(r'\{\{asset:([^}]+)\}\}',replace,edit.markdown)
+        content=re.sub(r'\{\{asset:([^}]+)\}\}',replace,edit.markdown)
+        marker='<!-- textbook-items: '+json.dumps(edit.item_ids)+' -->\n'
+        first,sep,rest=content.partition('\n')
+        sections[edit.anchor]=first+sep+marker+rest+'\n\n'
     front=existing.front_matter if existing and existing.front_matter else '---\n'+yaml.safe_dump({'title':lesson.title,'weight':lesson.weight},allow_unicode=True,sort_keys=False)+'---\n'
     body=''.join(sections[a] for a in order)
     if draft.aids:
-        body+='\n\n'+AID_START+'\n\n'+('\n\n'.join(a.markdown for a in draft.aids))+'\n\n'+AID_END+'\n'
+        body+='\n\n'+AID_START+'\n\n'+('\n\n'.join('<!-- textbook-aid:'+a.id+' -->\n'+a.markdown for a in draft.aids))+'\n\n'+AID_END+'\n'
     return front+body

@@ -24,5 +24,5 @@ def crop_assets(evidence: LessonEvidence, specs: list[AssetSpec], staging: Path)
             if min(crop.size)<12: raise ValueError('Crop too small to be readable')
             crop.save(dest); width,height=crop.size
         if inspect_render(dest): raise ValueError('Blank or invalid figure crop')
-        result.append(AssetRecord(**spec.model_dump(),path=name,sha256=sha256(dest),width=width,height=height))
+        result.append(AssetRecord(**spec.model_dump(),path=name,sha256=sha256(dest),width=width,height=height,local_file=dest))
     return result

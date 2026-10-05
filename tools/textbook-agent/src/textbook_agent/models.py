@@ -120,6 +120,7 @@ class AssetRecord(Contract):
     width: int
     height: int
     flags: list[str] = Field(default_factory=list)
+    local_file: Path | None = None
 
 class ExistingLesson(Contract):
     path: Path

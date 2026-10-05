@@ -1,4 +1,4 @@
-import hashlib,json
+import hashlib,json,re
 from pathlib import Path
 import fitz,yaml
 from pydantic import Field
@@ -20,6 +20,7 @@ def check_inventory(result: ItemInventory, lesson: LessonSpec, medium: str) -> N
     if result.language!=medium: raise ValueError('Source medium mismatch or unknown language')
     if not result.items or len({i.id for i in result.items})!=len(result.items): raise ValueError('Empty or duplicate source inventory')
     for item in result.items:
+        if not re.fullmatch(r'[a-zA-Z0-9.-]+',item.id): raise ValueError('Unsafe source-item ID')
         if not lesson.pdf_start<=item.page<=lesson.pdf_end: raise ValueError('Source item outside lesson pages')
         if item.box is not None: Boundary(page=item.page,box=item.box)
         if item.flags: raise ValueError('Unresolved source issue: '+'; '.join(item.flags))

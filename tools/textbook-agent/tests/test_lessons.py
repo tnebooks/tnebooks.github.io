@@ -18,3 +18,9 @@ def test_new_lesson_and_unbound_asset(book):
     assert 'weight: 1' in assemble_lesson(book.lessons[0],None,draft,[])
     draft.edits[0].markdown+=' {{asset:missing}}'
     with pytest.raises(ValueError): assemble_lesson(book.lessons[0],None,draft,[])
+
+def test_source_and_aid_markers_support_focused_review(book):
+    from textbook_agent.models import StudyAid
+    draft=LessonDraft(edits=[SectionEdit(anchor='new-1',expected_sha256=None,markdown='## Force\n\nForce.',after_anchor=None,item_ids=['p1'])],assets=[],aids=[StudyAid(id='summary',markdown='## Study aid\n\nForce.',source_item_ids=['p1'])],notes=[])
+    output=assemble_lesson(book.lessons[0],None,draft,[])
+    assert 'textbook-items: ["p1"]' in output and 'textbook-aid:summary' in output
